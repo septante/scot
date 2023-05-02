@@ -1,0 +1,30 @@
+[package]
+name = "scot"
+version = "0.1.0"
+authors = ["septante <130835353+septante@users.noreply.github.com"]
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "server-client over tcp"
+readme = "../README.md"
+repository = "https://github.com/septante/scot/"
+homepage = "https://github.com/septante/scot/"
+
+[lib]
+name = "scot"
+path = "src/lib.rs"
+
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+futures = "0.3"
+parking_lot = "0.12"
+serde = { version = "1" }
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1.24", features = ["macros", "net", "rt"] }
+tokio-serde = { version = "0.8", features = ["json"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
