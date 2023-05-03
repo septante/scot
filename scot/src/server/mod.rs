@@ -124,14 +124,18 @@ pub trait Server: 'static {
         let (broadcast_sender, _rx) = broadcast::channel::<(Value, Recipients<Self::ClientID>)>(10);
 
         loop {
-            self.__next_client(listener, &broadcast_sender, self.get_state())
-                .await?;
+            self.__next_client::<crate::private::InternalFlag>(
+                listener,
+                &broadcast_sender,
+                self.get_state(),
+            )
+            .await?;
         }
     }
 
     #[doc(hidden)]
     /// Accept the next connection and set up channels.
-    async fn __next_client(
+    async fn __next_client<T: crate::private::Internal>(
         &self,
         listener: &TcpListener,
         broadcast_sender: &BroadcastSender<Self::ClientID>,
