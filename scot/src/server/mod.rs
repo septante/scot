@@ -206,8 +206,8 @@ pub trait Server: 'static {
                                     Self::ClientMessageHandler::handle_client_message(msg, &id, &mut message_channels, &mut state).await;
                                 }
                             }
-                            Err(_e) => {
-                                Self::ClientMessageHandler::handle_bad_message(&id, &mut message_channels, &mut state).await;
+                            Err(e) => {
+                                Self::ClientMessageHandler::handle_bad_message(e.into(), &id, &mut message_channels, &mut state).await;
                             }
                         }
                     }
@@ -251,6 +251,7 @@ pub trait MessageHandler {
 
     /// Handle a client message that couldn't be deserialized.
     async fn handle_bad_message(
+        _err: Error,
         _id: &Self::ClientID,
         _channels: &mut ServerMessageChannels<Self::ClientID>,
         _state: &mut Self::State,
