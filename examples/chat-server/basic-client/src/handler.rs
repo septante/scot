@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chat_api::api::ServerMessage;
-use scot::client::MessageHandler;
+use scot::{client::MessageHandler, types::ValueSender};
 
 #[derive(Clone)]
 pub struct ServerMessageHandler;
@@ -10,7 +10,7 @@ pub struct ServerMessageHandler;
 impl MessageHandler for ServerMessageHandler {
     type ServerMessage = ServerMessage;
 
-    async fn handle_server_message(msg: ServerMessage) {
+    async fn handle_server_message(msg: ServerMessage, _response_channel: &mut ValueSender) {
         match msg {
             ServerMessage::PingResponse => {
                 println!("pong!");

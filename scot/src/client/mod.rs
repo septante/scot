@@ -37,7 +37,7 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 /// # #[async_trait]
 /// # impl MessageHandler for ServerMessageHandler {
 /// #     type ServerMessage = ChatServerMessage;
-/// #     async fn handle_server_message(msg: ChatServerMessage) {}
+/// #     async fn handle_server_message(msg: ChatServerMessage, _: &mut ValueSender) {}
 /// # }
 /// # struct GUIInputHandler;
 /// #
@@ -78,30 +78,43 @@ pub trait Client {
         self.start_with_stream(stream).await
     }
 
-    /// Start the client with a given TcpStream.
+    /// Start the client with a given [`TcpStream`].
     async fn start_with_stream(&self, stream: TcpStream) -> Result<()> {
         // Duplicate the stream: one for serializing and one for deserializing
-        let de_stream = stream.into_std()?;
-        let ser_stream = de_stream.try_clone()?;
-        let de_stream = TcpStream::from_std(de_stream)?;
-        let ser_stream = TcpStream::from_std(ser_stream)?;
+        let receiver_stream = stream.into_std()?;
+        let message_handler_sender_stream = receiver_stream.try_clone()?;
+        let input_handler_sender_stream = receiver_stream.try_clone()?;
+        let receiver_stream = TcpStream::from_std(receiver_stream)?;
+        let message_handler_sender_stream = TcpStream::from_std(message_handler_sender_stream)?;
+        let input_handler_sender_stream = TcpStream::from_std(input_handler_sender_stream)?;
 
-        let mut deserialized: MessageReceiver<Self::ServerMessage> =
+        let mut receiver: MessageReceiver<Self::ServerMessage> =
             tokio_serde::SymmetricallyFramed::new(
-                FramedRead::new(de_stream, LengthDelimitedCodec::new()),
+                FramedRead::new(receiver_stream, LengthDelimitedCodec::new()),
                 SymmetricalJson::<Self::ServerMessage>::default(),
             );
 
-        let mut serialized: ValueSender = tokio_serde::SymmetricallyFramed::new(
-            FramedWrite::new(ser_stream, LengthDelimitedCodec::new()),
+        let mut message_handler_sender: ValueSender = tokio_serde::SymmetricallyFramed::new(
+            FramedWrite::new(message_handler_sender_stream, LengthDelimitedCodec::new()),
+            SymmetricalJson::default(),
+        );
+
+        let mut input_handler_sender: ValueSender = tokio_serde::SymmetricallyFramed::new(
+            FramedWrite::new(input_handler_sender_stream, LengthDelimitedCodec::new()),
             SymmetricalJson::default(),
         );
 
         // Handle incoming messages from the server
         tokio::spawn(async move {
-            while let Some(next) = deserialized.next().await {
+            while let Some(next) = receiver.next().await {
                 match next {
-                    Ok(msg) => Self::ServerMessageHandler::handle_server_message(msg).await,
+                    Ok(msg) => {
+                        Self::ServerMessageHandler::handle_server_message(
+                            msg,
+                            &mut message_handler_sender,
+                        )
+                        .await;
+                    }
                     Err(e) => Self::ServerMessageHandler::handle_bad_message(e.into()).await,
                 }
             }
@@ -109,7 +122,7 @@ pub trait Client {
 
         // Continuously read user input and send appropriate messages to the server
         loop {
-            Self::InputHandler::next_input(&mut serialized).await;
+            Self::InputHandler::next_input(&mut input_handler_sender).await;
         }
     }
 }
@@ -121,11 +134,11 @@ pub trait MessageHandler {
     /// imported from the server API.
     type ServerMessage;
 
-    /// Do something with the given server message.
-    async fn handle_server_message(msg: Self::ServerMessage);
-    /// Handle server messages whose deserialization fails.
-    ///
-    /// Default implementation does nothing.
+    /// Function to be called when a message is received from the server. A channel is provided
+    /// for sending responses back.
+    async fn handle_server_message(msg: Self::ServerMessage, response_channel: &mut ValueSender);
+
+    /// Function to be called when deserializing a message from the server fails. Does nothing by default.
     async fn handle_bad_message(_err: Error) {}
 }
 
