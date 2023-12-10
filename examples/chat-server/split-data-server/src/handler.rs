@@ -1,10 +1,12 @@
-use async_trait::async_trait;
-use futures::SinkExt;
+use std::sync::atomic::Ordering;
 
-use crate::state::ServerState;
+use async_trait::async_trait;
 use chat_api::api::{ClientMessage, ServerMessage};
+use futures::SinkExt;
 use scot::{server::recipients::Recipients, server::MessageHandler, types::*};
 use uuid::Uuid;
+
+use crate::state::ServerState;
 
 #[derive(Clone)]
 pub struct ClientMessageHandler;
@@ -41,8 +43,11 @@ impl MessageHandler for ClientMessageHandler {
                 let recipients = Recipients::everyone_but(user_id, users);
 
                 {
-                    *state.message_counter.lock() += 1;
-                    println!("Total messages: {}", state.message_counter.lock());
+                    state.message_counter.fetch_add(1, Ordering::Relaxed);
+                    println!(
+                        "Total messages: {}",
+                        state.message_counter.load(Ordering::Relaxed)
+                    );
                 }
 
                 message_channels

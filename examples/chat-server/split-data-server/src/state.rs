@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{atomic::AtomicUsize, Arc};
 
 use parking_lot::Mutex;
 use scot::server::State;
@@ -9,10 +9,12 @@ use uuid::Uuid;
 /// Another possibility is to have a [`Vec<Arc<Mutex<>>>`]. This could be
 /// useful if, for instance, you wanted to build a chat server with multiple
 /// rooms, with each room being represented by one of the locks in the [`Vec`].
+/// Here, we don't want to lock new users out of joining when the message
+/// counter is being updated.
 #[derive(Default, Clone)]
 pub struct ServerState {
     pub users: Arc<Mutex<Vec<Uuid>>>,
-    pub message_counter: Arc<Mutex<usize>>,
+    pub message_counter: Arc<AtomicUsize>,
 }
 
 impl State for ServerState {

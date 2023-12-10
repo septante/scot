@@ -11,9 +11,9 @@ use basic_chat_server::ClientMessageHandler;
 use chat_api::api::ClientMessage;
 
 /// This server uses the simplest way to share data, which is to wrap
-/// the entire state in an [`Arc<Mutex<State>>`].
-/// Compare this with `split-data-server`, which has separate
-/// [`Arc<Mutex<_>>`]s in each field of the state.
+/// the entire state in an [`Arc<Mutex<T>>`].
+/// Compare this with `split-data-server`, which handles each part of the
+/// state separately.
 struct ChatServer {
     state: Arc<Mutex<ServerState>>,
 }
